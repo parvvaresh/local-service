@@ -1,0 +1,219 @@
+---
+services:
+  # Swagger Editor - API design and documentation
+  swagger-editor:
+    image: swaggerapi/swagger-editor:latest
+    container_name: swagger-editor
+    ports:
+      - "7880:8080"
+    restart: unless-stopped
+
+  # Swagger UI - Display and test API documentation
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    container_name: swagger-ui
+    ports:
+      - "7881:8080"
+    restart: unless-stopped
+
+  # Jupyter Notebook - Interactive data science environment
+  jupyter:
+    image: jupyter/scipy-notebook:latest
+    container_name: jupyter-notebook
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./jupyter-data:/home/jovyan/work
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+    restart: unless-stopped
+
+  # Overleaf (ShareLaTeX) - LaTeX editor for academic papers
+  overleaf:
+    image: sharelatex/sharelatex:latest
+    container_name: overleaf
+    ports:
+      - "8889:80"
+    volumes:
+      - ./overleaf-data:/var/lib/sharelatex
+    environment:
+      SHARELATEX_APP_NAME: "Overleaf Local"
+      SHARELATEX_MONGO_URL: mongodb://mongo/sharelatex
+      SHARELATEX_REDIS_HOST: redis
+      SHARELATEX_SITE_URL: "http://localhost:8889"
+    depends_on:
+      - mongo
+      - redis
+    restart: unless-stopped
+
+  # MongoDB - Database for Overleaf
+  mongo:
+    image: mongo:5
+    container_name: mongo
+    volumes:
+      - ./mongo-data:/data/db
+    restart: unless-stopped
+
+  # Redis - Cache for Overleaf
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+
+  # VS Code Server - VS Code in browser
+  code-server:
+    image: codercom/code-server:latest
+    container_name: code-server
+    ports:
+      - "8890:8080"
+    volumes:
+      - ./code-server-data:/home/coder/project
+      - ./code-server-config:/home/coder/.config
+    environment:
+      - PASSWORD=admin
+    restart: unless-stopped
+
+  # GitLab - Git repository management
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab
+    ports:
+      - "8891:80"
+      - "8892:443"
+      - "2222:22"
+    volumes:
+      - ./gitlab-data/config:/etc/gitlab
+      - ./gitlab-data/logs:/var/log/gitlab
+      - ./gitlab-data/data:/var/opt/gitlab
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://localhost:8891'
+    restart: unless-stopped
+    shm_size: '256m'
+
+  # Draw.io - Diagram and flowchart editor
+  drawio:
+    image: jgraph/drawio:latest
+    container_name: drawio
+    ports:
+      - "8893:8080"
+    restart: unless-stopped
+
+  # RStudio - IDE for R programming
+  rstudio:
+    image: rocker/rstudio:latest
+    container_name: rstudio
+    ports:
+      - "8894:8787"
+    volumes:
+      - ./rstudio-data:/home/rstudio
+    environment:
+      - PASSWORD=rstudio
+    restart: unless-stopped
+
+  # pgAdmin - PostgreSQL management interface
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    ports:
+      - "8895:80"
+    volumes:
+      - ./pgadmin-data:/var/lib/pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    restart: unless-stopped
+
+  # Mongo Express - MongoDB management interface
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    ports:
+      - "8896:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  # Portainer - Docker container management
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    ports:
+      - "9000:9000"
+      - "8897:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer-data:/data
+    restart: unless-stopped
+
+  # Redoc - Beautiful API documentation
+  redoc:
+    image: redocly/redoc:latest
+    container_name: redoc
+    ports:
+      - "8898:80"
+    restart: unless-stopped
+
+  # NextCloud - File storage and sharing
+  nextcloud:
+    image: nextcloud:latest
+    container_name: nextcloud
+    ports:
+      - "8899:80"
+    volumes:
+      - ./nextcloud-data:/var/www/html
+    environment:
+      - MYSQL_HOST=nextcloud-db
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=nextcloud
+    depends_on:
+      - nextcloud-db
+    restart: unless-stopped
+
+  # MySQL - Database for NextCloud
+  nextcloud-db:
+    image: mysql:8
+    container_name: nextcloud-db
+    volumes:
+      - ./nextcloud-db-data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpass
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=nextcloud
+    restart: unless-stopped
+
+  # Mattermost - Team communication platform
+  mattermost:
+    image: mattermost/mattermost-team-edition:latest
+    container_name: mattermost
+    ports:
+      - "8900:8065"
+    volumes:
+      - ./mattermost-config:/mattermost/config
+      - ./mattermost-data:/mattermost/data
+      - ./mattermost-logs:/mattermost/logs
+      - ./mattermost-plugins:/mattermost/plugins
+    environment:
+      - MM_SQLSETTINGS_DRIVERNAME=postgres
+      - MM_SQLSETTINGS_DATASOURCE=postgres://mattermost:mattermost@postgres-mattermost:5432/mattermost?sslmode=disable
+    depends_on:
+      - postgres-mattermost
+    restart: unless-stopped
+
+  # PostgreSQL - Database for Mattermost
+  postgres-mattermost:
+    image: postgres:14-alpine
+    container_name: postgres-mattermost
+    volumes:
+      - ./postgres-mattermost-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=mattermost
+      - POSTGRES_PASSWORD=mattermost
+      - POSTGRES_DB=mattermost
+    restart: unless-stopped

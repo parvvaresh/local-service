@@ -1,0 +1,28 @@
+# Data directories
+*-data/
+*-config/
+
+# Specific service data
+jupyter-data/
+overleaf-data/
+mongo-data/
+code-server-data/
+code-server-config/
+gitlab-data/
+rstudio-data/
+pgadmin-data/
+portainer-data/
+nextcloud-data/
+nextcloud-db-data/
+mattermost-config/
+mattermost-data/
+mattermost-logs/
+mattermost-plugins/
+postgres-mattermost-data/
+
+# Docker
+.env
+
+# OS
+.DS_Store
+Thumbs.db
