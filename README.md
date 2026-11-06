@@ -37,6 +37,11 @@ This project provides a complete local stack of essential development tools that
 ### Container Management
 - **Portainer** (Port 9000) - Docker container management
 
+### AI & Local LLMs
+- **Ollama** (Port 11434) - Run AI models locally (OpenAI-compatible API)
+- **Open WebUI** (Port 8901) - ChatGPT-like web interface for local models
+- **Coding models** - `qwen2.5-coder:7b`, `qwen2.5-coder:1.5b` and `nomic-embed-text` are downloaded automatically on first start
+
 ## Quick Start
 
 Run all services with one command:
@@ -63,6 +68,8 @@ docker compose up -d
 | Mattermost | http://localhost:8900 | Setup on first visit |
 | Portainer | http://localhost:9000 | Setup on first visit |
 | Redoc | http://localhost:8898 | - |
+| Open WebUI | http://localhost:8901 | First signup becomes admin |
+| Ollama API | http://localhost:11434 | - |
 
 ## Usage Tips
 
@@ -87,6 +94,97 @@ docker compose down -v
 rm -rf *-data
 ```
 
+## Local AI Coding Assistant (Ollama)
+
+Everything runs on your machine — no internet or API key needed after the models are downloaded.
+
+### Start only the AI services
+```bash
+docker compose up -d ollama ollama-models open-webui
+docker logs -f ollama-models   # watch model download progress
+```
+
+### Choose which models to download
+By default `qwen2.5-coder:7b` (chat), `qwen2.5-coder:1.5b` (autocomplete) and `nomic-embed-text` (codebase search) are pulled.
+Override the list with the `CODING_MODELS` variable (space-separated), either in your shell or in a `.env` file:
+
+```bash
+CODING_MODELS="qwen2.5-coder:14b deepseek-coder-v2:16b" docker compose up -d ollama-models
+```
+
+Or pull any model manually at any time:
+```bash
+docker exec -it ollama ollama pull codellama:7b
+docker exec -it ollama ollama list
+```
+
+### Recommended coding models
+
+| Model | Size | RAM needed | Good for |
+|-------|------|------------|----------|
+| `qwen2.5-coder:1.5b` | ~1 GB | 4 GB | Fast autocomplete, weak machines |
+| `qwen2.5-coder:7b` | ~4.7 GB | 8 GB | Best all-round choice |
+| `qwen2.5-coder:14b` | ~9 GB | 16 GB | Better quality |
+| `qwen2.5-coder:32b` | ~20 GB | 32 GB+ | Near cloud-level quality |
+| `deepseek-coder-v2:16b` | ~9 GB | 16 GB | Strong multi-language coding |
+| `qwen3-coder:30b` | ~19 GB | 32 GB+ | Agentic coding, large context |
+| `codellama:7b` | ~3.8 GB | 8 GB | Classic code model |
+| `starcoder2:3b` | ~1.7 GB | 4 GB | Lightweight autocomplete |
+
+Browse more at https://ollama.com/library?c=code
+
+### Chat from the terminal
+```bash
+docker exec -it ollama ollama run qwen2.5-coder:7b
+```
+
+### Use it from your code (OpenAI-compatible API)
+```bash
+curl http://localhost:11434/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "qwen2.5-coder:7b", "messages": [{"role": "user", "content": "Write a Python function to reverse a string"}]}'
+```
+Any tool that supports OpenAI can use it: set the base URL to `http://localhost:11434/v1` and use any value as the API key.
+
+### Use it inside VS Code (Copilot-like)
+Install the **Continue** extension (works in desktop VS Code and in the bundled VS Code Server at port 8890), then put this in `~/.continue/config.yaml`:
+
+```yaml
+name: Local Assistant
+version: 1.0.0
+schema: v1
+models:
+  - name: Qwen2.5 Coder 7B
+    provider: ollama
+    model: qwen2.5-coder:7b
+    apiBase: http://localhost:11434   # inside code-server use http://ollama:11434
+    roles: [chat, edit, apply]
+  - name: Qwen2.5 Coder 1.5B
+    provider: ollama
+    model: qwen2.5-coder:1.5b
+    apiBase: http://localhost:11434
+    roles: [autocomplete]
+  - name: Nomic Embed
+    provider: ollama
+    model: nomic-embed-text
+    apiBase: http://localhost:11434
+    roles: [embed]
+```
+
+> Note: for `http://ollama:11434` to work from code-server, both containers run in the same compose network (they do by default).
+
+### Use it from the terminal with Aider
+```bash
+pip install aider-chat
+export OLLAMA_API_BASE=http://localhost:11434
+aider --model ollama_chat/qwen2.5-coder:7b
+```
+
+### Performance notes
+- **macOS (Apple Silicon):** Docker cannot use the Mac GPU, so Ollama in Docker runs on CPU only. For much faster responses install Ollama natively (`brew install ollama` or https://ollama.com/download) and stop the `ollama` container — everything above keeps working on `localhost:11434`.
+- **Linux + NVIDIA GPU:** install the NVIDIA Container Toolkit and uncomment the `deploy:` section of the `ollama` service in `docker-compose.yml`.
+- Models are stored in `./ollama-data`, so they are downloaded only once.
+
 ## Data Persistence
 
 All services store their data in local directories:
@@ -95,6 +193,8 @@ All services store their data in local directories:
 - `./code-server-data` - VS Code projects
 - `./gitlab-data` - Git repositories
 - `./nextcloud-data` - Cloud files
+- `./ollama-data` - Downloaded AI models
+- `./open-webui-data` - Open WebUI chats and settings
 - And more...
 
 ## Resource Requirements
@@ -108,6 +208,8 @@ All services store their data in local directories:
 - RAM: 16GB+
 - Disk: 50GB+ free space
 - SSD for better performance
+
+**For AI models:** add the model's RAM requirement (see table above) and ~5-20 GB disk per model.
 
 ## Customization
 
