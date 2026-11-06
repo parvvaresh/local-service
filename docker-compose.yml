@@ -217,3 +217,64 @@ services:
       - POSTGRES_PASSWORD=mattermost
       - POSTGRES_DB=mattermost
     restart: unless-stopped
+
+  # Ollama - Run large language models (LLMs) locally
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=30m
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    # Uncomment to use an NVIDIA GPU (requires NVIDIA Container Toolkit)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # Ollama model puller - downloads coding models once, then exits.
+  # Override the list with: CODING_MODELS="qwen2.5-coder:14b" docker compose up -d
+  ollama-models:
+    image: ollama/ollama:latest
+    container_name: ollama-models
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=ollama:11434
+      - MODELS_TO_PULL=${CODING_MODELS-qwen2.5-coder:7b qwen2.5-coder:1.5b nomic-embed-text}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for model in $$MODELS_TO_PULL; do
+          echo "==> Pulling $$model"
+          ollama pull "$$model" || echo "!! Failed to pull $$model"
+        done
+        echo "==> Done. Installed models:"
+        ollama list
+    restart: "no"
+
+  # Open WebUI - ChatGPT-like web interface for Ollama models
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    ports:
+      - "8901:8080"
+    volumes:
+      - ./open-webui-data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    depends_on:
+      - ollama
+    restart: unless-stopped

@@ -19,6 +19,8 @@ mattermost-data/
 mattermost-logs/
 mattermost-plugins/
 postgres-mattermost-data/
+ollama-data/
+open-webui-data/
 
 # Docker
 .env
